@@ -1,16 +1,28 @@
 import express from "express";
 import dotenv from "dotenv";
-import DataBase from "./config/DataBase.js";
+import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import errorHandler from "./middleware/errorHandler.js";
 
 // Routes
+import DataBase from "./config/DataBase.js";
 import UserRoutes from "./routes/UserRoutes.js";
 
 dotenv.config();
 
+const app = express();
 const PORT = process.env.PORT || 4000;
 
-const app = express();
 app.use(express.json());
+app.use(cookieParser());
+app.use(helmet());
+
+
+
+// user
+app.use("/api/user", UserRoutes);
+
+app.use(errorHandler); // Allways last
 
 const startServer = async () => {
     try {
@@ -29,7 +41,4 @@ const startServer = async () => {
 };
 
 
-// user
-app.use("/api/user", UserRoutes);
-
-server();
+startServer();

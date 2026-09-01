@@ -27,14 +27,13 @@ const userSchema = new mongoose.Schema(
             maxlength: 128,
             select: false
         },
-        KycType: {
+        kycType: {
             type: String,
             enum: ["bvn", "nin"],
             default: null,
         },
-        KycId: {
+        kycId: {
             type: String,
-            required: true,
             trim: true,
             default: null,
             select: false
@@ -58,7 +57,7 @@ userSchema.pre("save", async function () {
     this.password = await bcrypt.hash(this.password, 11);
 });
 
-userSchema.methods.comparePaswword = async function (password) {
+userSchema.methods.comparePassword = async function (password) {
     return await bcrypt.compare(password, this.password);
 }
 
