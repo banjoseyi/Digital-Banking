@@ -40,9 +40,9 @@ const createAccount = async (req, res, next) => {
         const account = await Account.create({
             user: user._id,
             accountNumber: accountData.accountNumber,
-            accountName: accountData.accountName, 
+            accountName: accountData.accountName,
             bankCode: accountData.bankCode,
-            bankName: process.env.NIBSS_BANK_NAME, 
+            bankName: process.env.NIBSS_BANK_NAME,
         });
         // Return the created account
         return res.status(201).json({
@@ -72,6 +72,39 @@ const createAccount = async (req, res, next) => {
 }
 
 
+const getBalance = async (req, res, next) => {
+    try {
+
+        const account = await Account.findOne({ user: req.user._id });
+
+        if (!account) {
+            throw new AppError("No bank account found for this user", 400);
+        }
+
+        const { data } = await nibss.get(`/api/account/balance/${account.accountNumber}`);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                accountNumber: account.accountNumber,
+                balance: data.balance,
+            },
+        });
+
+    } catch (error) {
+        if (error.response) {
+            return next(new AppError(
+                error.response.data?.message || "Unable to fetch balance",
+                error.response.status || 500
+            ));
+        }
+        next(error);
+
+    }
+};
+
+
 export default {
-    createAccount
+    createAccount,
+    getBalance
 }
