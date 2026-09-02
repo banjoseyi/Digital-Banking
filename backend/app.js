@@ -1,5 +1,5 @@
 import express from "express";
-import dotenv from "dotenv";
+import "dotenv/config";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import errorHandler from "./middleware/errorHandler.js";
@@ -8,7 +8,6 @@ import errorHandler from "./middleware/errorHandler.js";
 import DataBase from "./config/DataBase.js";
 import UserRoutes from "./routes/UserRoutes.js";
 
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
