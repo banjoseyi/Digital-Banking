@@ -17,7 +17,7 @@ const protect = async (req, res, next) => {
       audience: "digital-banking-client",
     });
 
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).select("+kycId");
 
     if (!user) {
       throw new AppError("User no longer exists", 401);

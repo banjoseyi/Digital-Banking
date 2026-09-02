@@ -6,13 +6,17 @@ let cachedToken = null;
 let tokenExpiresAt = 0;
 
 async function login() {
-    const { data } = await axios.post(`${BASE_URL}/api/auth/token`, {
-        apiKey: process.env.NIBSS_API_KEY,
-        apiSecret: process.env.NIBSS_API_SECRET,
-    });
+    const { data } = await axios.post(
+        `${process.env.NIBSS_BASE_URL}/api/auth/token`,
+        {
+            apiKey: process.env.NIBSS_API_KEY,
+            apiSecret: process.env.NIBSS_API_SECRET,
+        }
+    );
 
     cachedToken = data.token;
     tokenExpiresAt = Date.now() + 58 * 60 * 1000;
+
     return cachedToken;
 }
 

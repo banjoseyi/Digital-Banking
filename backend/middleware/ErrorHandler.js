@@ -1,12 +1,10 @@
-const errorHandler = (err, req, res, next) => {
-  console.error(err); // swap for a real logger later
+const errorHandler = (error, req, res, next) => {
+  console.error(error);
 
-  const statusCode = err.statusCode || 500;
-  const message = err.statusCode ? err.message : "Something went wrong";
-
-  return res.status(statusCode).json({
+  return res.status(error.statusCode || 500).json({
     success: false,
-    message,
+    message: error.message || "Internal server error",
+    code: error.code || "SERVER_ERROR",
   });
 };
 

@@ -2,11 +2,12 @@ import express from "express";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
-import errorHandler from "./middleware/errorHandler.js";
+import errorHandler from "./middleware/ErrorHandler.js";
 
 // Routes
 import DataBase from "./config/DataBase.js";
 import UserRoutes from "./routes/UserRoutes.js";
+import AccountRoutes from "./routes/AccountRoutes.js"
 
 
 const app = express();
@@ -20,6 +21,9 @@ app.use(helmet());
 
 // user
 app.use("/api/user", UserRoutes);
+
+//Account
+app.use("/api/account", AccountRoutes);
 
 app.use(errorHandler); // Allways last
 

@@ -5,6 +5,7 @@ import AppError from "../utils/AppError.js";
 import nibss from "../service/nibssClient.js";
 import { createAccessToken, createRefreshToken } from "../utils/Tokens.js";
 
+
 const registerUser = async (req, res, next) => {
     try {
         const { firstName, lastName, email, password } = req.body;
@@ -197,9 +198,6 @@ const submitKyc = async (req, res, next) => {
         if (!validationResponse.success) {
             throw new AppError("Identity validation failed", 400);
         }
-
-        const validation = validationResponse.data;
-
 
         //Stage 3
         req.user.kycId = kycId;
