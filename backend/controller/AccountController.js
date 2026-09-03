@@ -1,6 +1,7 @@
 import Account from "../model/Account.js"
 import AppError from "../utils/AppError.js";
 import nibss from "../service/nibssClient.js";
+import Transaction from "../model/Transaction.js";
 
 const createAccount = async (req, res, next) => {
     try {
@@ -126,7 +127,7 @@ const nameEnquiry = async (req, res, next) => {
     } catch (error) {
         if (error.response) {
             return next(new AppError(
-                error.response.data?.message || "Unable to fetch balance",
+                error.response.data?.message || "Unable to make Enquiry about the account",
                 error.response.status || 500
             ));
         }
@@ -138,12 +139,55 @@ const nameEnquiry = async (req, res, next) => {
 const transferFunds = async (req, res, next) => {
     try {
 
-        
+        const { to, amount } = req.body;
+
+
+
+        const senderAccountNumber = await Account.findOne({ user: req.user._id, });
+
+        if (!senderAccountNumber) {
+            throw new AppError("Account number is required", 400);
+        }
+
+        if (senderAccountNumber.accountNumber === to) {
+            throw new AppError("You can't transfer funds to yourselft", 400);
+        }
+
+        const { data: nibssResponse } = await nibss.post("/api/transfer", {
+            from: senderAccountNumber.accountNumber,
+            to,
+            amount: String(amount),
+        })
+
+        if (!nibssResponse.reference) {
+            throw new AppError(nibssResponse.message || "Transfer failed", 400);
+        }
+
+        await Transaction.create({
+            user: req.user._id,
+            transactionId: nibssResponse.reference,
+            from: senderAccountNumber.accountNumber,
+            to: nibssResponse.receiverAccount,
+            amount: nibssResponse.amount,
+            status: nibssResponse.status
+        })
+
+        return res.status(200).json({
+            success: true,
+            message: "Transfer successful",
+            data: {
+                transactionId: nibssResponse.reference,
+                from: senderAccountNumber.accountNumber,
+                to: nibssResponse.receiverAccount,
+                amount: nibssResponse.amount,
+                status: nibssResponse.status,
+            },
+        });
 
     } catch (error) {
         if (error.response) {
             return next(new AppError(
-                error.response.data?.message || "Unable to fetch balance",
+                error.response.data?.message || "Unable to process transfer",
                 error.response.status || 500
             ));
         }
