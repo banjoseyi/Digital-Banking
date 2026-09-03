@@ -96,7 +96,34 @@ const checkTransactionStatus = async (req, res, next) => {
     }
 }
 
+const getMyTransactions = async (req, res, next) => {
+    try {
+        const transactions = await Transaction.find({ user: req.user._id })
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                count: transactions.length,
+                transactions: transactions.map((t) => ({
+                    transactionId: t.transactionId,
+                    from: t.from,
+                    to: t.to,
+                    amount: t.amount,
+                    status: t.status,
+                    createdAt: t.createdAt,
+                })),
+            },
+        });
+
+    } catch (error) {
+
+        next(error);
+    }
+}
+
 export default {
     transferFunds,
-    checkTransactionStatus
+    checkTransactionStatus,
+    getMyTransactions
 }
