@@ -1,18 +1,20 @@
-# Digital Banking System — TS Academy Backend Assignment
+# Digital Banking System
 
-A backend banking system integrating with the **NibssByPhoenix** simulated NIBSS API. Supports customer onboarding, KYC verification, account creation, and (in progress) core banking operations.
+This is my TS Academy backend assignment — a banking system backend that integrates with the **NibssByPhoenix** simulated NIBSS API. It handles customer onboarding, KYC, account creation, and core banking operations (name enquiry, transfers, balance checks, transaction history).
+
+**Deadline:** 5th September 2026
 
 ---
 
-## Tech Stack
+## Stack
 
-- **Runtime:** Node.js, Express.js
-- **Database:** MongoDB (Mongoose)
-- **Validation:** Joi
-- **Auth:** JWT (access + refresh tokens, stateless — no DB session tracking)
-- **Password hashing:** bcrypt
-- **HTTP client:** Axios (with a custom auto-refreshing wrapper for NIBSS auth)
-- **Security middleware:** Helmet, express-rate-limit, cookie-parser
+- Node.js + Express
+- MongoDB with Mongoose
+- Joi for validation
+- JWT for auth (access + refresh tokens)
+- bcrypt for password hashing
+- Axios for calling NIBSS
+- Helmet, express-rate-limit, cookie-parser
 
 ---
 
@@ -20,30 +22,33 @@ A backend banking system integrating with the **NibssByPhoenix** simulated NIBSS
 
 ```
 backend/
-├── config/
-│   └── DataBase.js
+├── config/DataBase.js
 ├── controller/
 │   ├── UserController.js
-│   └── AccountController.js
+│   ├── AccountController.js
+│   └── TransactionController.js
 ├── middleware/
-│   ├── AuthMiddleware.js       # protect() — Bearer token verification
-│   ├── Validate.js             # Joi schema validation middleware
-│   ├── RateLimitMiddleware.js  # register/login rate limits
-│   └── errorHandler.js         # centralized error handler (must be last in app.js)
+│   ├── AuthMiddleware.js
+│   ├── Validate.js
+│   ├── RateLimitMiddleware.js
+│   └── errorHandler.js
 ├── model/
 │   ├── User.js
-│   └── Account.js
+│   ├── Account.js
+│   └── Transaction.js
 ├── routes/
 │   ├── UserRoutes.js
-│   └── AccountRoutes.js
+│   ├── AccountRoutes.js
+│   └── TransactionRoutes.js
 ├── service/
-│   └── nibssClient.js          # Axios instance with auto-refreshing NIBSS JWT
+│   └── nibssClient.js
 ├── utils/
 │   ├── AppError.js
-│   └── Tokens.js                # createAccessToken / createRefreshToken
+│   └── Tokens.js
 ├── validator/
 │   ├── userValidator.js
-│   └── kycValidator.js
+│   ├── kycValidator.js
+│   └── transferValidator.js
 └── app.js
 ```
 
@@ -55,85 +60,81 @@ backend/
 PORT=7000
 MONGODB_URI=mongodb://localhost:27017/digital-banking
 
-NIBSS_BASE_URL=*****
-NIBSS_API_KEY=<from fintech onboarding>
-NIBSS_API_SECRET=<from fintech onboarding>
-NIBSS_BANK_CODE=<assigned by NIBSS>
-NIBSS_BANK_NAME=<assigned by NIBSS>
+NIBSS_BASE_URL=https://nibssbyphoenix.onrender.com
+NIBSS_API_KEY=
+NIBSS_API_SECRET=
+NIBSS_BANK_CODE=
+NIBSS_BANK_NAME=
 
-ACCESS_TOKEN_SECRET=<random string>
-REFRESH_TOKEN_SECRET=<random string>
+ACCESS_TOKEN_SECRET=
+REFRESH_TOKEN_SECRET=
 ```
 
-**Important:** `import "dotenv/config"` must be the **first line** in `app.js`, before any other imports. ES module imports are hoisted and execute before code in the importing file — if `dotenv.config()` runs after other imports, any module that reads `process.env` at import time (rather than inside a function) will lock in `undefined` values permanently for that process.
+One thing that tripped me up: `import "dotenv/config"` has to be the very first line in `app.js`. Since ES module imports load before anything else in the file runs, if dotenv loads after another import that reads `process.env` at the top level, that value gets locked in as `undefined` for the whole process — even if the `.env` file is correct.
 
 ---
 
-## Two Separate Auth Systems (don't confuse these)
+## Two Separate Auth Systems — don't mix these up
 
-| | Purpose | Used by |
+- **`ACCESS_TOKEN_SECRET` / `REFRESH_TOKEN_SECRET`** — for logging *my customers* into this app.
+- **`NIBSS_API_KEY` / `NIBSS_API_SECRET`** — for authenticating *my fintech* to NIBSS. Server-side only, customers never see it.
+
+---
+
+## What's Working So Far
+
+### User (`/api/user`)
+- `POST /register` — create a customer
+- `POST /login` — returns access token, sets refresh token cookie
+- `POST /refresh` — get a new access token
+- `POST /logout`
+- `POST /kyc` — submits BVN/NIN to NIBSS, validates it, flips `isKycVerified` to true
+
+### Account (`/api/account`)
+- `POST /createAccount` — requires KYC verified, one account per user, creates the NUBAN on NIBSS and saves it locally
+- `GET /getBalance` — always fetched live from NIBSS, never stored locally so it can't go stale
+- `GET /nameEnquiry/:accountNumber` — resolves an account number to a name before transferring
+
+### Transaction (`/api/transaction`)
+- `POST /transfer` — sends money between two accounts, logs the transfer locally
+- `GET /` — my transaction history, scoped to the logged-in user only
+- `GET /:transactionId` — checks a transaction's status (only works for transactions that user actually made)
+
+---
+
+## Design Decisions
+
+- **No local balance caching.** Balance always comes from NIBSS live. A stored balance would drift the second a transfer happens, so I didn't bother.
+- **Access tokens expire in 15 min, refresh tokens in 7 days.** No database session table — kept it stateless for this assignment's scope.
+- **Data isolation** is enforced by always filtering by `req.user._id`, never by an ID the client sends. This applies to transaction history and status checks.
+
+---
+
+## Biggest Lesson: NIBSS's Live API Doesn't Always Match Its Own Docs
+
+I got stuck a few times trusting the documented sample responses instead of testing the real thing. Every time, I fixed it by hitting the endpoint directly in Postman first (bypassing my own app) to see the actual shape before writing any parsing code. A few examples:
+
+| Endpoint | Docs say | Actually returns |
 |---|---|---|
-| `ACCESS_TOKEN_SECRET` / `REFRESH_TOKEN_SECRET` | Authenticates **our own customers** into this app | `/api/user/login`, `protect` middleware |
-| `NIBSS_API_KEY` / `NIBSS_API_SECRET` | Authenticates **our fintech** to NIBSS itself | `nibssClient.js` (server-to-server only, never touches a customer's session) |
+| `validateBvn` | `{ "valid": true, ... }` | `{ "success": true, "data": { ... } }` |
+| `account/create` | Flat, no `accountName` | Nested under `"account"`, and `accountName` IS included; `bankName` is not |
+| `transfer` | `{ "transactionId": ..., "from": ..., "to": ... }` | `{ "reference": ..., "senderAccount": ..., "receiverAccount": ... }` |
+
+Lesson: never trust a docs sample blindly — always confirm with a real request first.
 
 ---
 
-## Implemented So Far
+## Other Notes
 
-### User Auth (`/api/user`)
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/register` | — | Create a customer account (rate-limited) |
-| POST | `/login` | — | Login, returns access token + sets refresh token cookie (rate-limited) |
-| POST | `/refresh` | Refresh cookie | Issue a new access token |
-| POST | `/logout` | Bearer | Clear refresh token cookie |
-| POST | `/kyc` | Bearer | Submit BVN/NIN → insert + validate against NIBSS, flips `isKycVerified` |
-
-### Accounts (`/api/account`)
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/createAccount` | Bearer | Create NIBSS bank account (requires KYC verified, max 1/user) |
-| GET | `/balance` | Bearer | Live balance, always fetched fresh from NIBSS — never cached locally |
-
-### Design decisions
-- **Access tokens:** 15 min expiry, sent in `Authorization: Bearer` header. **Refresh tokens:** 7 days, httpOnly cookie. Stateless — no DB-backed session table, by choice for this assignment's scope.
-- **No local balance caching.** Balance-check always hits NIBSS live (`GET /api/account/balance/{accountNo}`), so it can never drift out of sync with the real ledger.
-- **`accountName`** on account creation is taken directly from NIBSS's response (confirmed present despite the docs' sample suggesting otherwise).
-- **`bankName`** is NOT returned by `account/create` — pulled from `NIBSS_BANK_NAME` env var instead, since every account created by this fintech belongs to the same single assigned bank.
+- The NIBSS sandbox seems to be shared across the whole cohort, so obvious test BVNs (`12345678901`, sequences, repeated digits) are usually already taken. I generate random 11-digit numbers instead.
+- It's hosted on Render's free tier, so it occasionally cold-starts slowly or throws a transient 500. Hitting `/api/docs` first usually wakes it up.
+- Early on, a bug in my account-creation code caused a few NIBSS accounts to get created without saving locally (it checked for a `success` field that didn't exist in the real response). I found and reconciled those manually once I caught it — the underlying bug is fixed now.
 
 ---
 
-## Important Gotcha: NIBSS's Live API Doesn't Always Match Its Own Docs
+## Still Left To Do
 
-Several endpoints returned a different response shape in production than their documented sample. Confirmed by testing directly against NIBSS in Postman (bypassing our app) before trusting any shape:
-
-| Endpoint | Docs sample shape | **Actual live shape** |
-|---|---|---|
-| `validateBvn` | `{ "valid": true, "bvn": ..., ... }` | `{ "success": true, "message": ..., "data": { "bvn": ..., ... } }` — no `valid` field |
-| `account/create` | Flat: `{ "accountNumber": ..., "bankCode": ..., "balance": ... }`, no `accountName` | Nested: `{ "message": ..., "account": { "accountNumber": ..., "accountName": ..., "bankCode": ... } }` — no `bankName`, no `balance` field, `accountName` IS present |
-
-**Lesson applied throughout:** never trust a documented sample response blindly — confirm the real shape with a direct test before parsing it in code.
-
----
-
-## Known Data Quirk (documented, not a bug)
-
-Early testing surfaced a bug (now fixed) where the app checked for a `success`/`data` field that didn't exist in NIBSS's real `account/create` response, causing the app to treat successful NIBSS account creations as failures and skip the local database save. This left a few accounts existing on NIBSS with no matching local record for a small number of early test users. These were manually reconciled once identified via `GET /api/accounts`. The underlying bug is fixed, so this shouldn't recur for accounts created going forward.
-
----
-
-## Still To Do (per assignment requirements)
-
-- [ ] Name enquiry (`GET /api/account/name-enquiry/{accountNo}`)
-- [ ] Funds transfer — intra-bank and inter-bank (`POST /api/transfer`)
-- [ ] Transaction status check (TSQ) (`GET /api/transaction/{transactionId}`)
-- [ ] Transaction history endpoint, scoped so each customer sees only their own transactions
-- [ ] `Transaction` model to log transfers locally (from/to, amount, status, owning userId)
-- [ ] Data isolation review — confirm no endpoint can be made to return another customer's data
-
----
-
-## Testing Notes
-
-- The NIBSS sandbox appears to be **shared across the whole cohort** — avoid "obvious" test BVNs (`12345678901`, sequences, all-same-digit patterns); they're likely already taken by classmates. Use random 11-digit numbers instead.
-- NIBSS is hosted on Render's free tier — expect occasional cold-start delays or transient 500s after periods of inactivity. Hit `/api/docs` first to "wake" it before a testing session.
+- [ ] Intra vs inter-bank transfer distinction, if the assignment needs it called out explicitly (currently `/transfer` handles both the same way, matching how NIBSS itself treats it)
+- [ ] Final review of data isolation across every endpoint
+- [ ] Clean up any leftover duplicate routes from when I moved `transferFunds` between controllers
+- [ ] Final end-to-end test pass before submission
