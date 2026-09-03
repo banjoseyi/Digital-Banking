@@ -1,8 +1,7 @@
 import express from "express";
 import AccountController from "../controller/AccountController.js"
 import protect from "../middleware/AuthMiddleware.js"
-import transcationValidator from "../validator/transferValidator.js"
-import validate from "../middleware/Validate.js"
+
 // import rateLimitMiddleware from "../middleware/RateLimitMiddleware.js";
 
 
@@ -15,6 +14,5 @@ router.get("/getBalance", protect, AccountController.getBalance);
 
 //Confirming the account number info before transcations.
 router.get("/nameEnquiry/:accountNumber", protect, AccountController.nameEnquiry);
-router.post("/transfer", protect, validate(transcationValidator.transferSchema), AccountController.transferFunds);
 
 export default router;

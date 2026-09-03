@@ -8,6 +8,7 @@ import errorHandler from "./middleware/ErrorHandler.js";
 import DataBase from "./config/DataBase.js";
 import UserRoutes from "./routes/UserRoutes.js";
 import AccountRoutes from "./routes/AccountRoutes.js"
+import TransactionRoutes from "./routes/TransactionRoutes.js";
 
 
 const app = express();
@@ -24,6 +25,9 @@ app.use("/api/user", UserRoutes);
 
 //Account
 app.use("/api/account", AccountRoutes);
+
+//Transaction
+app.use("/api/transaction", TransactionRoutes);
 
 app.use(errorHandler); // Allways last
 
