@@ -104,7 +104,56 @@ const getBalance = async (req, res, next) => {
 };
 
 
+const nameEnquiry = async (req, res, next) => {
+    try {
+
+        const { accountNumber } = req.params;
+
+        if (!accountNumber) {
+            throw new AppError("Account number is required", 400);
+        }
+
+        const { data } = await nibss.get(`/api/account/name-enquiry/${accountNumber}`)
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                accountNumber: data.accountNumber,
+                accountName: data.accountName,
+                bankCode: data.bankCode,
+            }
+        })
+    } catch (error) {
+        if (error.response) {
+            return next(new AppError(
+                error.response.data?.message || "Unable to fetch balance",
+                error.response.status || 500
+            ));
+        }
+        next(error);
+    }
+}
+
+
+const transferFunds = async (req, res, next) => {
+    try {
+
+        
+
+    } catch (error) {
+        if (error.response) {
+            return next(new AppError(
+                error.response.data?.message || "Unable to fetch balance",
+                error.response.status || 500
+            ));
+        }
+        next(error);
+    }
+}
+
 export default {
     createAccount,
-    getBalance
+    getBalance,
+    nameEnquiry,
+    transferFunds
 }
