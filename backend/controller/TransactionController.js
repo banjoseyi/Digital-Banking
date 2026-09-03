@@ -105,6 +105,8 @@ const getMyTransactions = async (req, res, next) => {
             success: true,
             data: {
                 count: transactions.length,
+                
+                // so i can be specific on what to output
                 transactions: transactions.map((t) => ({
                     transactionId: t.transactionId,
                     from: t.from,
